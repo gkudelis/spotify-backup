@@ -18,7 +18,7 @@
                         Authenticate "From" Account
                     </button>
                     <button v-else type="button" class="btn btn-success btn-block" disabled>
-                        From Account
+                        {{ fromAccName || 'Waiting for API' }}
                     </button>
                 </div>
                 <div class="col-4 offset-1">
@@ -33,7 +33,7 @@
                         Authenticate "To" Account
                     </button>
                     <button v-else type="button" class="btn btn-success btn-block" disabled>
-                        To Account
+                        {{ toAccName || 'Waiting for API' }}
                     </button>
                 </div>
             </div>
