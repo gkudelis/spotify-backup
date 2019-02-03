@@ -32,7 +32,7 @@ function PromisQ (maxLength) {
     this.push = function (item) {
         return new Promise(function (resolve, reject) {
             if (pq.pushResolve === null) {
-                if (pq.queue.length < maxLength) {
+                if (pq.queue.length < (maxLength - 1)) {
                     if (pq.popResolve !== null) {
                         pq.popResolve(item);
                         pq.popResolve = null;
@@ -41,6 +41,7 @@ function PromisQ (maxLength) {
                     }
                     resolve();
                 } else {
+                    pq.queue.push(item);
                     pq.pushResolve = resolve;
                 }
             } else {
