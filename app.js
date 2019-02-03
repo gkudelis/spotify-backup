@@ -11,7 +11,7 @@ new Vue({
     data: {
         fromAuthComplete: false,
         toAuthComplete: false,
-        albumCopyPercentage: 0,
+        trackLoadPercentage: 0,
         trackCopyPercentage: 0,
         progressLog: 'Waiting for authentication\n',
         fromAccName: null,
@@ -69,64 +69,9 @@ new Vue({
                 state: 'authTo'
             });
         },
-        copyAlbumsAndTracks: function() {
-            var vm = this;
-            vm.copyAlbums().then(function() {
-                return vm.copyTracks();
-            });
-        },
-        copyAlbums: function() {
-            var vm = this;
-            vm.progressLog += 'Copying saved albums\n';
-            var albumCount;
-            var albumPageSize = 5;
-            return fromSpotify.getAlbums(1).then(function(albumData) {
-                // first find the number of albums
-                albumCount = albumData.total;
-                // create a list of offsets
-                var offsets = [];
-                for (var i = 0; i < albumCount; i += albumPageSize) {
-                    offsets.unshift(i);
-                }
-                // queue album fetches
-                var pushed = 0;
-                offsets.reduce(function(p, offset) {
-                    // set up a new unresolved promise for album results
-                    var albumLoadResolve;
-                    var albumLoad = new Promise(function(resolve, reject) {
-                        albumLoadResolve = resolve;
-                    });
-                    // wait for the queue to accept our push
-                    return p.then(function() {
-                        return pq.push(albumLoad);
-                    }).then(function() {
-                        pushed += 1;
-                        // resolve the load promise with another promise
-                        albumLoadResolve(fromSpotify.getAlbums(albumPageSize, offset));
-                    });
-                }, Promise.resolve());
-                // once all have been queued - queue album saves
-                var batchesProcessed = 0;
-                return offsets.reduce(function(p) {
-                    return p.then(function() {
-                        return pq.pop();
-                    }).then(function(albumData) {
-                        var albumIds = albumData.items.map(function(item) {
-                            return item.album.id;
-                        });
-                        return toSpotify.saveAlbums(albumIds);
-                    }).then(function() {
-                        batchesProcessed += 1;
-                        vm.albumCopyPercentage = Math.ceil((batchesProcessed / offsets.length) * 100);
-                    });
-                }, Promise.resolve());
-            }).then(function() {
-                vm.progressLog += 'Finished copying albums\n';
-            });
-        },
         copyTracks: function() {
             var vm = this;
-            vm.progressLog += 'Copying saved tracks\n';
+            vm.progressLog += 'Loading tracks\n';
             var trackCount;
             var trackPageSize = 50;
             return fromSpotify.getTracks(1).then(function(trackData) {
@@ -137,7 +82,7 @@ new Vue({
                 for (var i = 0; i < trackCount; i += trackPageSize) {
                     offsets.unshift(i);
                 }
-                // queue track fetches
+                // queue track fetches (these are happening in parallel)
                 offsets.reduce(function(p, offset) {
                     // set up a new unresolved promise for track results
                     var trackLoadResolve;
@@ -152,25 +97,103 @@ new Vue({
                         trackLoadResolve(fromSpotify.getTracks(trackPageSize, offset));
                     });
                 }, Promise.resolve());
-                // once all have been queued - queue track saves
+                // once all have been queued - collect results from the queue
                 var batchesProcessed = 0;
+                var allSavedTracks = [];
                 return offsets.reduce(function(p) {
                     return p.then(function() {
                         return pq.pop();
                     }).then(function(trackData) {
-                        var trackIds = trackData.items.map(function(item) {
-                            return item.track.id;
-                        });
+                        batchesProcessed += 1;
+                        vm.trackLoadPercentage = Math.ceil((batchesProcessed / offsets.length) * 100);
+                        // add current batch to the full list of tracks
+                        trackData.items.reduce(function(savedTrackAcc, item) {
+                            savedTrackAcc.push({
+                                id: item.track.id,
+                                added_at: item.added_at
+                            });
+                            return savedTrackAcc;
+                        }, allSavedTracks);
+                        return allSavedTracks;
+                    });
+                }, Promise.resolve());
+            }).then(function(allSavedTracks) {
+                vm.progressLog += 'Finished loading tracks\n';
+                // sort in ascending order by added date
+                var sortedTracks = allSavedTracks.sort(function(a, b) {
+                    return new Date(a.added_at) - new Date(b.added_at);
+                });
+                // group by added date, also split up groups if larger than 50
+                var groupedTracks = sortedTracks.reduce(function(acc, track) {
+                    if (track.added_at === acc.lastDate &&
+                            acc.groups[acc.groups.length - 1].length < 50) {
+                        acc.groups[acc.groups.length - 1].push(track.id);
+                    } else {
+                        acc.groups.push([track.id]);
+                    }
+                    return {
+                        lastDate: track.added_at,
+                        groups: acc.groups
+                    };
+                }, {lastDate: null, groups: []}).groups;
+                vm.progressLog += 'Saving tracks\n';
+                // save tracks (groups are ordererd by date originally saved)
+                var batchesProcessed = 0;
+                return groupedTracks.reduce(function(p, trackIds) {
+                    return p.then(function() {
                         return toSpotify.saveTracks(trackIds);
                     }).then(function() {
                         batchesProcessed += 1;
-                        vm.trackCopyPercentage = Math.ceil((batchesProcessed / offsets.length) * 100);
+                        vm.trackCopyPercentage = Math.ceil((batchesProcessed / groupedTracks.length) * 100);
                     });
                 }, Promise.resolve());
             }).then(function() {
-                vm.progressLog += 'Finished copying tracks\n';
+                vm.progressLog += 'Finished saving tracks\n';
             });
-        }
+        },
+        //wipeToAccountTracks: function() {
+        //    var vm = this;
+        //    vm.progressLog += 'Wiping "to" account tracks\n';
+        //    var trackCount;
+        //    var trackPageSize = 50;
+        //    return toSpotify.getTracks(1).then(function(trackData) {
+        //        // first find the number of tracks
+        //        trackCount = trackData.total;
+        //        // create a list of offsets
+        //        var offsets = [];
+        //        for (var i = 0; i < trackCount; i += trackPageSize) {
+        //            offsets.unshift(i);
+        //        }
+        //        // queue track fetches
+        //        offsets.reduce(function(p, offset) {
+        //            // set up a new unresolved promise for track results
+        //            var trackLoadResolve;
+        //            var trackLoad = new Promise(function(resolve, reject) {
+        //                trackLoadResolve = resolve;
+        //            });
+        //            // wait for the queue to accept our push
+        //            return p.then(function() {
+        //                return pq.push(trackLoad);
+        //            }).then(function() {
+        //                // resolve the load promise with another promise
+        //                trackLoadResolve(toSpotify.getTracks(trackPageSize, offset));
+        //            });
+        //        }, Promise.resolve());
+        //        // once all have been queued - queue track deletes
+        //        return offsets.reduce(function(p) {
+        //            return p.then(function() {
+        //                return pq.pop();
+        //            }).then(function(trackData) {
+        //                var trackIds = trackData.items.map(function(item) {
+        //                    return item.track.id;
+        //                });
+        //                return toSpotify.deleteTracks(trackIds);
+        //            });
+        //        }, Promise.resolve());
+        //    }).then(function() {
+        //        vm.progressLog += 'Finished wiping tracks\n';
+        //    });
+        //}
     }
 });
 

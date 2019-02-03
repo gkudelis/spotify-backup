@@ -54,7 +54,7 @@ function Spotify(clientId, rateLimitLock) {
                     console.log('request not authorized (hint: scope)');
                 } else if (error.response) {
                     console.log('response received, error unknown');
-                    console.log(response);
+                    console.log(error);
                 } else if (error.request) {
                     // did not get a response from the server - retry now
                     console.log('retrying request');
@@ -101,6 +101,13 @@ function Spotify(clientId, rateLimitLock) {
         var sp = this;
         return this.makeRequest(function() {
             return sp.ax.put('/me/tracks', trackIds);
+        });
+    }
+
+    this.deleteTracks = function(trackIds) {
+        var sp = this;
+        return this.makeRequest(function() {
+            return sp.ax.delete('/me/tracks', { data: trackIds });
         });
     }
 }
