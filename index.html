@@ -22,7 +22,7 @@
                     </button>
                 </div>
                 <div class="col-4 offset-1">
-                    <button type="button" class="btn btn-primary btn-block" v-bind:disabled="!fromAuthComplete || !toAuthComplete">
+                    <button type="button" class="btn btn-primary btn-block" v-bind:disabled="!fromAuthComplete || !toAuthComplete" v-on:click="copyAlbumsAndSongs">
                         Copy Saved Albums and Songs
                         &nbsp;
                         <i class="fas fa-arrow-right"></i>
@@ -64,6 +64,9 @@
             </div>
         </div>
     </div>
+
+    <script src="/spotify.js"></script>
+    <script src="/promisq.js"></script>
     <script src="/app.js"></script>
 </body>
 </html>
