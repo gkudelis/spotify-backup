@@ -6,9 +6,10 @@ function Spotify(clientId, rateLimitLock) {
 
     this.startAuth = function(options) {
         var qs = objectToQueryString({
+            client_id: this.clientId,
             scope: options.scope,
             state: options.state,
-            client_id: this.clientId,
+            show_dialog: 'true',
             response_type: 'token',
             redirect_uri: window.location.href.split('#')[0]
         });
@@ -38,7 +39,7 @@ function Spotify(clientId, rateLimitLock) {
                     if (rateLimitLock === null) {
                         var retryAfter = parseInt(error.response.headers['retry-after']);
                         rateLimitLock = new Promise(function(resolve, reject) {
-                            console.log('waiting for ' + retryAfter + ' s');
+                            console.log('Spotify waiting for ' + retryAfter + ' s');
                             setTimeout(function() {
                                 rateLimitLock = null;
                                 resolve();
@@ -47,6 +48,8 @@ function Spotify(clientId, rateLimitLock) {
                     }
                     // retry after waiting
                     return rateLimitLock.then(spi.makeRequest.bind(spi, requestLambda));
+                } else if (error.response && error.response.status === 401) {
+                    console.log('auth token has expired');
                 } else if (error.response && error.response.status === 403) {
                     console.log('request not authorized (hint: scope)');
                 } else if (error.response) {
@@ -75,6 +78,29 @@ function Spotify(clientId, rateLimitLock) {
             return sp.ax.get('/me/albums', {
                 params: { limit: limit, offset: offset }
             });
+        });
+    }
+
+    this.saveAlbums = function(albumIds) {
+        var sp = this;
+        return this.makeRequest(function() {
+            return sp.ax.put('/me/albums', albumIds);
+        });
+    }
+
+    this.getTracks = function(limit, offset) {
+        var sp = this;
+        return this.makeRequest(function() {
+            return sp.ax.get('/me/tracks', {
+                params: { limit: limit, offset: offset }
+            });
+        });
+    }
+
+    this.saveTracks = function(trackIds) {
+        var sp = this;
+        return this.makeRequest(function() {
+            return sp.ax.put('/me/tracks', trackIds);
         });
     }
 }

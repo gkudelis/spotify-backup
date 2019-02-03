@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Copy Saved Spotify Albums and Songs</title>
+    <title>Copy Saved Spotify Albums and Tracks</title>
 
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
@@ -22,8 +22,8 @@
                     </button>
                 </div>
                 <div class="col-4 offset-1">
-                    <button type="button" class="btn btn-primary btn-block" v-bind:disabled="!fromAuthComplete || !toAuthComplete" v-on:click="copyAlbumsAndSongs">
-                        Copy Saved Albums and Songs
+                    <button type="button" class="btn btn-primary btn-block" v-bind:disabled="!fromAuthComplete || !toAuthComplete" v-on:click="copyAlbumsAndTracks">
+                        Copy Saved Albums and Tracks
                         &nbsp;
                         <i class="fas fa-arrow-right"></i>
                     </button>
@@ -48,10 +48,10 @@
             </div>
 
             <div class="row" style="min-height: 5rem">
-                <div class="col-3">Songs Copied</div>
+                <div class="col-3">Tracks Copied</div>
                 <div class="col-8 offset-1">
                     <div class="progress">
-                        <div class="progress-bar bg-info" role="progressbar" v-bind:style="{width: songCopyPercentage+'%'}" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress-bar bg-info" role="progressbar" v-bind:style="{width: trackCopyPercentage+'%'}" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
             </div>
